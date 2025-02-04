@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::Read;
@@ -48,6 +47,14 @@ impl VirtualState {
         self.registers.resize(idx + 1, 0);
         self.registers[idx] = val;
     }
+
+    fn get(&mut self, idx: usize) -> u64 {
+        if !(idx < self.registers.len()) {
+            panic!("attempted to read un-initialized register {}", idx);
+        }
+
+        self.registers[idx]
+    }
 }
 
 fn parse_num(token: &str) -> Option<u64> {
@@ -96,6 +103,29 @@ fn loadi(
     Ok(())
 }
 
+fn load(
+    state: &mut VirtualState,
+    lhs: Vec<&str>,
+    rhs: Vec<&str>,
+) -> Result<(), String> {
+    if !check_num(&lhs, &rhs, 1, 1) {
+        return Err("invalid number of args".into())
+    }
+
+    let Some(reg_in) = parse_reg(lhs.get(0).unwrap()) else {
+        return Err("lhs must be an integer".into())
+    };
+
+    let Some(reg_out) = parse_reg(rhs.get(0).unwrap()) else {
+        return Err("rhs must be a register".into())
+    };
+
+    let val = state.get(reg_in);
+    state.set(reg_out, val);
+
+    Ok(())
+}
+
 fn parse(state: &mut VirtualState, file: &mut impl Read) {
     let corpus: String = file.bytes()
         .map(|x| x.expect("faulty byte read") as char)
@@ -115,6 +145,7 @@ fn parse(state: &mut VirtualState, file: &mut impl Read) {
 
         let op_state = match opcode {
             "loadI" => loadi(state, lhs, rhs),
+            "load" => load(state, lhs, rhs),
             "nop" => Ok(()),
             _ => Err(format!("opcode {} invalid", opcode)),
         };
