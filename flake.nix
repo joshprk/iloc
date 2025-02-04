@@ -23,16 +23,26 @@
       ];
     };
   in {
+    apps = forAllSystems (system: {
+      iloc = let
+        pkg = self.packages.${system}.iloc;
+      in {
+        type = "app";
+        program = "${pkg}/bin/${pkg.pname}";
+      };
+
+      default = self.apps.${system}.iloc;
+    });
+
     packages = forAllSystems (system: let
       pkgs = getPkgs system;
     in {
-      iloc = pkgs.stdenv.mkDerivation {
+      iloc = pkgs.rustPlatform.buildRustPackage {
         pname = "iloc";
         version = "0.1.0";
+        src = ./.;
 
-        buildInputs = with pkgs; [
-          rust-bin.stable.latest.default
-        ];
+        cargoLock.lockFile = ./Cargo.lock;
       };
 
       default = self.packages.${system}.iloc;
